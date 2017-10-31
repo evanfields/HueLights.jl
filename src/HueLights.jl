@@ -27,6 +27,7 @@ end
 function set_light_state!(light::Int, body::Dict)
 	HTTP.put(HUE * "/lights/$(light)/state"; body = JSON.json(body))
 end
+	
 
 # brightness false by default because it seems like not all color specs
 # can express the same brightness range, e.g. RGB(0,0,1) gives a brightness Y of
@@ -43,11 +44,6 @@ function set_light_color!(light, color; brightness = false)
 	set_light_state!(light, state)
 end
 
-function set_light_green!(light::Int)
-	d = Dict("on" => true, "bri" => 254, "hue" => 25500, "sat" => 254)
-	set_light_state!(light, d)
-end
-
 function get_light_state(light::Int)
 	d = JSON.parse(String(HTTP.get(HUE * "/lights/$(light)")))
 	return d["state"]
@@ -56,7 +52,18 @@ end
 macro huewarn(light, expr)
 	quote
 		local val = $(esc(expr))
-		set_light_green!($(light))
+		@schedule begin
+			l = $(light)
+			state = get_light_state(l)
+			set_light_state!(l, Dict("on" => true, "bri" => 254))
+			set_light_color!(l, RGB(0,1,0))
+			sleep(1)
+			set_light_color!(l, RGB(1,0,0))
+			sleep(1)
+			set_light_color!(l, RGB(0,1,0))
+			sleep(1)
+			set_light_state!(l, state)
+		end
 		return val
 	end
 end
