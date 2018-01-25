@@ -2,6 +2,30 @@ module HueLights
 
 using HTTP, JSON, Colors
 
+"""
+    get_bridge_ip()
+
+Get the IP address of the Hue bridge. First check the environment variables,
+and if key `HUE_BRIDGE_IP` is not present, use the Philips Hue website. Return
+the address as a string or throw an error if none is found.
+"""
+function get_bridge_ip()
+	if haskey(ENV, "HUE_BRIDGE_IP")
+		return ENV["HUE_BRIDGE_IP"]
+	end
+	r = HTTP.get("https://www.meethue.com/api/nupnp")
+	if r.status != 200
+		error("Did not get successful response from https://www.meethue.com/api/nupnp")
+	end
+	# body should be a 1-element vector,
+	# something like [{"id":"012345abcde","internalipaddress":"192.168.0.102"}]
+	js = r.body |> String |> JSON.parse 
+	if length(js) < 1
+		error("Did not find any Hue bridges.")
+	end
+	return js[1]["internalipaddress"]
+end
+
 function hue_api_addr()
 	return "http://" * ENV["HUE_BRIDGE_IP"] * "/api/" * ENV["HUE_USERNAME"]
 end
